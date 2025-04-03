@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from homeassistant.exceptions import UpdateFailed  # Import UpdateFailed
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY, CONF_LATITUDE, CONF_LONGITUDE
@@ -25,6 +24,7 @@ from .const import (
     DOMAIN,
     LOGGER,
 )
+from . import OpenMeteoSolarForecastUpdateFailed  # Import the custom exception
 
 
 class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate]):
@@ -72,4 +72,4 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
             return estimate
         except Exception as error:
             LOGGER.error("Error fetching data: %s", error)
-            raise UpdateFailed(f"Error fetching data: {error}") from error
+            raise OpenMeteoSolarForecastUpdateFailed(f"Error fetching data: {error}") from error
