@@ -7,6 +7,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
+from .exceptions import OpenMeteoSolarForecastUpdateFailed
 from .coordinator import OpenMeteoSolarForecastDataUpdateCoordinator
 
 PLATFORMS = [Platform.SENSOR]
@@ -38,6 +39,3 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Update options."""
     await hass.config_entries.async_reload(entry.entry_id)
-
-class OpenMeteoSolarForecastUpdateFailed(Exception):
-    """Custom exception to handle update failures."""

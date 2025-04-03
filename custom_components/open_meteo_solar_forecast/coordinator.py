@@ -24,7 +24,7 @@ from .const import (
     DOMAIN,
     LOGGER,
 )
-from . import OpenMeteoSolarForecastUpdateFailed  # Import the custom exception
+from .exceptions import OpenMeteoSolarForecastUpdateFailed  # Import the custom exception from the new location
 
 
 class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate]):
