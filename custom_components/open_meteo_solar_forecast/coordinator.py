@@ -67,9 +67,27 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
     async def _async_update_data(self) -> Estimate:
         """Fetch Open-Meteo Solar Forecast estimates."""
         try:
-            estimate = await self.forecast.estimate()
+            # Fetch hourly cloud cover from open-meteo.com
+            cloud_cover_data = await self._fetch_hourly_cloud_cover()
+            
+            # Adjust the forecast with cloud cover data
+            estimate = await self.forecast.estimate(cloud_cover_data)
+
             LOGGER.debug("Received estimate data: %s", estimate)
             return estimate
         except Exception as error:
             LOGGER.error("Error fetching data: %s", error)
             raise OpenMeteoSolarForecastUpdateFailed(f"Error fetching data: {error}") from error
+
+    async def _fetch_hourly_cloud_cover(self) -> dict:
+        """Fetch hourly cloud cover data from open-meteo.com."""
+        # Example URL: https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&hourly=cloudcover
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={self.forecast.latitude}&longitude={self.forecast.longitude}&hourly=cloudcover"
+        
+        async with self.forecast.session.get(url) as response:
+            if response.status != 200:
+                raise Exception(f"Failed to fetch cloud cover data: {response.status}")
+            
+            data = await response.json()
+            cloud_cover_data = data.get("hourly", {}).get("cloudcover", [])
+            return cloud_cover_data

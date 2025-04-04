@@ -7,7 +7,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
-from .exceptions import OpenMeteoSolarForecastUpdateFailed
+from .exceptions import OpenMeteoSolarForecastUpdateFailed  # noqa: F401
 from .coordinator import OpenMeteoSolarForecastDataUpdateCoordinator
 
 PLATFORMS = [Platform.SENSOR]
