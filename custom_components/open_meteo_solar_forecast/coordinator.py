@@ -24,12 +24,9 @@ from .const import (
     CONF_MODULES_POWER,
     DOMAIN,
     LOGGER,
-    CONF_API_KEY,  # noqa: F811
-    CONF_LATITUDE,  # noqa: F811
-    CONF_LONGITUDE,  # noqa: F811
 )
 from .exceptions import OpenMeteoSolarForecastUpdateFailed
-import pandas as pd  # noqa: F401
+import pandas as pd 
 
 class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator):
     """DataUpdateCoordinator for the Open-Meteo Solar Forecast integration."""
