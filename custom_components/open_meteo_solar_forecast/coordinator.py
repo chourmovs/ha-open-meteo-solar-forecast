@@ -9,6 +9,8 @@ from homeassistant.const import CONF_API_KEY, CONF_LATITUDE, CONF_LONGITUDE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.aiohttp_client import async_get_clientsession  # noqa: F811
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator  # noqa: F811
 from open_meteo_solar_forecast import Estimate, OpenMeteoSolarForecast
 
 from .const import (
@@ -19,45 +21,43 @@ from .const import (
     CONF_DECLINATION,
     CONF_EFFICIENCY_FACTOR,
     CONF_INVERTER_POWER,
-    CONF_MODEL,
     CONF_MODULES_POWER,
     DOMAIN,
     LOGGER,
+    CONF_API_KEY,  # noqa: F811
+    CONF_LATITUDE,  # noqa: F811
+    CONF_LONGITUDE,  # noqa: F811
 )
-from .exceptions import OpenMeteoSolarForecastUpdateFailed  # Import the custom exception from the new location
+from .exceptions import OpenMeteoSolarForecastUpdateFailed
+from openmeteo_requests import Client
+import requests_cache
+from retry_requests import retry
+import pandas as pd  # noqa: F401
 
-
-class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate]):
-    """The Solar Forecast Data Update Coordinator."""
-
-    config_entry: ConfigEntry
+class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator):
+    """DataUpdateCoordinator for the Open-Meteo Solar Forecast integration."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
-        """Initialize the Solar Forecast coordinator."""
-        self.config_entry = entry
-
-        # Our option flow may cause it to be an empty string,
-        # this if statement is here to catch that.
-        api_key = entry.options.get(CONF_API_KEY) or None
-
-        # Handle new options that were added after the initial release
-        ac_kwp = entry.options.get(CONF_INVERTER_POWER, 0)
-        ac_kwp = ac_kwp / 1000 if ac_kwp else None
+        """Initialize the coordinator."""
+        # Setup the Open-Meteo API client with cache and retry on error
+        cache_session = requests_cache.CachedSession('.cache', expire_after=3600)
+        retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
+        self.openmeteo = Client(session=retry_session)
 
         self.forecast = OpenMeteoSolarForecast(
-            api_key=api_key,
+            api_key=entry.data.get(CONF_API_KEY),
             session=async_get_clientsession(hass),
             latitude=entry.data[CONF_LATITUDE],
             longitude=entry.data[CONF_LONGITUDE],
             azimuth=entry.options[CONF_AZIMUTH] - 180,
             base_url=entry.options[CONF_BASE_URL],
-            ac_kwp=ac_kwp,
+            ac_kwp=entry.options[CONF_INVERTER_POWER],
             dc_kwp=(entry.options[CONF_MODULES_POWER] / 1000),
             declination=entry.options[CONF_DECLINATION],
             efficiency_factor=entry.options[CONF_EFFICIENCY_FACTOR],
             damping_morning=entry.options.get(CONF_DAMPING_MORNING, 0.0),
             damping_evening=entry.options.get(CONF_DAMPING_EVENING, 0.0),
-            weather_model=entry.options.get(CONF_MODEL, "best_match"),
+            weather_model=entry.options.get("model", "best_match"),
         )
 
         update_interval = timedelta(minutes=30)
@@ -67,7 +67,7 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
     async def _async_update_data(self) -> Estimate:
         """Fetch Open-Meteo Solar Forecast estimates."""
         try:
-            # Fetch hourly cloud cover from open-meteo.com
+            # Fetch hourly cloud cover data
             cloud_cover_data = await self._fetch_hourly_cloud_cover()
             
             # Adjust the forecast with cloud cover data
@@ -78,21 +78,12 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
         except Exception as error:
             LOGGER.error("Error fetching data: %s", error)
             raise OpenMeteoSolarForecastUpdateFailed(f"Error fetching data: {error}") from error
-    async def _fetch_hourly_cloud_cover(self) -> list:
-        """Fetch hourly cloud cover data from open-meteo.com."""
-        # Example URL: https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&hourly=cloud_cover
-        url = f"https://api.open-meteo.com/v1/forecast?latitude={self.forecast.latitude}&longitude={self.forecast.longitude}&hourly=cloud_cover"
 
-        LOGGER.debug("Fetching cloud cover data from URL: %s", url)
-        
-        async with self.forecast.session.get(url) as response:
-            if response.status != 200:
-                LOGGER.error("Failed to fetch cloud cover data: %s", response.status)
-                raise Exception(f"Failed to fetch cloud cover data: {response.status}")
-            
-            data = await response.json()
-            LOGGER.debug("Received cloud cover data: %s", data)
-            
-            cloud_cover_data = data.get("hourly", {}).get("cloud_cover", [])
-            LOGGER.debug("Extracted cloud cover data: %s", cloud_cover_data)
-            return cloud_cover_data
+    async def _fetch_hourly_cloud_cover(self) -> dict:
+        """Fetch hourly cloud cover data from open-meteo.com."""
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={self.forecast.latitude}&longitude={self.forecast.longitude}&hourly=cloud_cover"
+        response = await self.openmeteo.weather_api(url, params={"latitude": self.forecast.latitude, "longitude": self.forecast.longitude, "hourly": "cloud_cover"})
+        response = response[0]
+        hourly = response.Hourly()
+        hourly_cloud_cover = hourly.Variables(0).ValuesAsNumpy()
+        return hourly_cloud_cover
