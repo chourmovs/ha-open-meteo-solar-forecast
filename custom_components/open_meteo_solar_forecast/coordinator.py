@@ -29,9 +29,6 @@ from .const import (
     CONF_LONGITUDE,  # noqa: F811
 )
 from .exceptions import OpenMeteoSolarForecastUpdateFailed
-from openmeteo_requests import Client
-import requests_cache
-from retry_requests import retry
 import pandas as pd  # noqa: F401
 
 class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator):
@@ -39,11 +36,6 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator):
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize the coordinator."""
-        # Setup the Open-Meteo API client with cache and retry on error
-        cache_session = requests_cache.CachedSession('.cache', expire_after=3600)
-        retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
-        self.openmeteo = Client(session=retry_session)
-
         self.forecast = OpenMeteoSolarForecast(
             api_key=entry.data.get(CONF_API_KEY),
             session=async_get_clientsession(hass),
@@ -67,44 +59,34 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> Estimate:
         """Fetch Open-Meteo Solar Forecast estimates."""
         try:
-            # Log the parameters for the API call
-            LOGGER.debug("Fetching hourly cloud cover data with parameters: %s", {
-                "latitude": self.forecast.latitude,
-                "longitude": self.forecast.longitude,
-                "hourly": "cloud_cover"
-            })
-
-            # Fetch hourly cloud cover data
+            # Fetch hourly cloud cover from open-meteo.com
             cloud_cover_data = await self._fetch_hourly_cloud_cover()
-
-            # Log the cloud cover data
-            LOGGER.debug("Received hourly cloud cover data: %s", cloud_cover_data)
-
+            
             # Adjust the forecast with cloud cover data
             estimate = await self.forecast.estimate(cloud_cover_data)
 
-            # Log the final estimate data
             LOGGER.debug("Received estimate data: %s", estimate)
             return estimate
         except Exception as error:
             LOGGER.error("Error fetching data: %s", error)
             raise OpenMeteoSolarForecastUpdateFailed(f"Error fetching data: {error}") from error
 
-    async def _fetch_hourly_cloud_cover(self) -> dict:
+    async def _fetch_hourly_cloud_cover(self) -> list:
         """Fetch hourly cloud cover data from open-meteo.com."""
+        # Example URL: https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&hourly=cloud_cover
         url = f"https://api.open-meteo.com/v1/forecast?latitude={self.forecast.latitude}&longitude={self.forecast.longitude}&hourly=cloud_cover"
-        response = await self.openmeteo.weather_api(url, params={"latitude": self.forecast.latitude, "longitude": self.forecast.longitude, "hourly": "cloud_cover"})
-        response = response[0]
-        hourly = response.Hourly()
-        hourly_cloud_cover = hourly.Variables(0).ValuesAsNumpy()
 
-        # Log the response details
-        LOGGER.debug("Open-Meteo API response details: %s", {
-            "Coordinates": f"{response.Latitude()}°N {response.Longitude()}°E",
-            "Elevation": f"{response.Elevation()} m asl",
-            "Timezone": f"{response.Timezone()}{response.TimezoneAbbreviation()}",
-            "Timezone difference to GMT+0": f"{response.UtcOffsetSeconds()} s",
-            "Hourly cloud cover data": hourly_cloud_cover
-        })
-
-        return hourly_cloud_cover
+        LOGGER.debug("Fetching cloud cover data from URL: %s", url)
+        
+        async with self.forecast.session.get(url) as response:
+            if response.status != 200:
+                response_text = await response.text()
+                LOGGER.error("Failed to fetch cloud cover data: %s. Response: %s", response.status, response_text)
+                raise Exception(f"Failed to fetch cloud cover data: {response.status}")
+            
+            data = await response.json()
+            LOGGER.debug("Received cloud cover data: %s", data)
+            
+            cloud_cover_data = data.get("hourly", {}).get("cloud_cover", [])
+            LOGGER.debug("Extracted cloud_cover data: %s", cloud_cover_data)
+            return cloud_cover_data
