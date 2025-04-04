@@ -67,12 +67,23 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> Estimate:
         """Fetch Open-Meteo Solar Forecast estimates."""
         try:
+            # Log the parameters for the API call
+            LOGGER.debug("Fetching hourly cloud cover data with parameters: %s", {
+                "latitude": self.forecast.latitude,
+                "longitude": self.forecast.longitude,
+                "hourly": "cloud_cover"
+            })
+
             # Fetch hourly cloud cover data
             cloud_cover_data = await self._fetch_hourly_cloud_cover()
-            
+
+            # Log the cloud cover data
+            LOGGER.debug("Received hourly cloud cover data: %s", cloud_cover_data)
+
             # Adjust the forecast with cloud cover data
             estimate = await self.forecast.estimate(cloud_cover_data)
 
+            # Log the final estimate data
             LOGGER.debug("Received estimate data: %s", estimate)
             return estimate
         except Exception as error:
@@ -86,4 +97,14 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator):
         response = response[0]
         hourly = response.Hourly()
         hourly_cloud_cover = hourly.Variables(0).ValuesAsNumpy()
+
+        # Log the response details
+        LOGGER.debug("Open-Meteo API response details: %s", {
+            "Coordinates": f"{response.Latitude()}°N {response.Longitude()}°E",
+            "Elevation": f"{response.Elevation()} m asl",
+            "Timezone": f"{response.Timezone()}{response.TimezoneAbbreviation()}",
+            "Timezone difference to GMT+0": f"{response.UtcOffsetSeconds()} s",
+            "Hourly cloud cover data": hourly_cloud_cover
+        })
+
         return hourly_cloud_cover
