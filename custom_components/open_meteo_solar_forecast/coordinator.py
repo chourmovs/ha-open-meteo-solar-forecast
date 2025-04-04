@@ -78,16 +78,21 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
         except Exception as error:
             LOGGER.error("Error fetching data: %s", error)
             raise OpenMeteoSolarForecastUpdateFailed(f"Error fetching data: {error}") from error
-
-    async def _fetch_hourly_cloud_cover(self) -> dict:
+    async def _fetch_hourly_cloud_cover(self) -> list:
         """Fetch hourly cloud cover data from open-meteo.com."""
-        # Example URL: https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&hourly=cloudcover
-        url = f"https://api.open-meteo.com/v1/forecast?latitude={self.forecast.latitude}&longitude={self.forecast.longitude}&hourly=cloudcover"
+        # Example URL: https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&hourly=cloud_cover
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={self.forecast.latitude}&longitude={self.forecast.longitude}&hourly=cloud_cover"
+
+        LOGGER.debug("Fetching cloud cover data from URL: %s", url)
         
         async with self.forecast.session.get(url) as response:
             if response.status != 200:
+                LOGGER.error("Failed to fetch cloud cover data: %s", response.status)
                 raise Exception(f"Failed to fetch cloud cover data: {response.status}")
             
             data = await response.json()
-            cloud_cover_data = data.get("hourly", {}).get("cloudcover", [])
+            LOGGER.debug("Received cloud cover data: %s", data)
+            
+            cloud_cover_data = data.get("hourly", {}).get("cloud_cover", [])
+            LOGGER.debug("Extracted cloud cover data: %s", cloud_cover_data)
             return cloud_cover_data
