@@ -1,9 +1,7 @@
 """DataUpdateCoordinator for the Open-Meteo Solar Forecast integration."""
-
 from __future__ import annotations
 
 from datetime import timedelta
-
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY, CONF_LATITUDE, CONF_LONGITUDE
 from homeassistant.core import HomeAssistant
@@ -27,43 +25,44 @@ from .const import (
 from .exceptions import OpenMeteoSolarForecastUpdateFailed
 
 def clean_value(value):
-    """Remove brackets and convert to float, then return as string."""
-    if isinstance(value, str):
-        value = value.strip('[]')
-    cleaned_value = round(float(value), 2)
-    LOGGER.debug("Cleaned value: %s", cleaned_value)
-    return str(cleaned_value)
+    """Nettoyage et validation des valeurs numériques."""
+    try:
+        cleaned = round(float(str(value).strip('[]')), 6)
+        LOGGER.debug("Valeur nettoyée : %s", cleaned)
+        return cleaned
+    except ValueError as err:
+        LOGGER.error("Erreur de conversion numérique : %s", err)
+        raise ValueError(f"Valeur numérique invalide : {value}") from err
 
 class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate]):
-    """The Solar Forecast Data Update Coordinator."""
+    """Coordinateur de mise à jour des données solaires."""
+
     config_entry: ConfigEntry
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
-        """Initialize the Solar Forecast coordinator."""
+        """Initialisation du coordinateur."""
         self.config_entry = entry
-        # Our option flow may cause it to be an empty string,
-        # this if statement is here to catch that.
+        
         api_key = entry.options.get(CONF_API_KEY) or None
-        # Handle new options that were added after the initial release
-        ac_kwp = entry.options.get(CONF_INVERTER_POWER, 0)
-        ac_kwp = ac_kwp / 1000 if ac_kwp else None
+        ac_kwp = entry.options.get(CONF_INVERTER_POWER, 0) / 1000
 
-        # Ensure latitude and longitude are valid numbers
+        # Validation et nettoyage des coordonnées
         latitude = clean_value(entry.data[CONF_LATITUDE])
         longitude = clean_value(entry.data[CONF_LONGITUDE])
+        
+        if not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180):
+            raise ValueError("Coordonnées GPS invalides")
 
-        if not (-90 <= float(latitude) <= 90) or not (-180 <= float(longitude) <= 180):
-            raise ValueError("Invalid latitude or longitude values")
-
+        # Configuration du client Open-Meteo
         self.forecast = OpenMeteoSolarForecast(
             api_key=api_key,
             session=async_get_clientsession(hass),
-            latitude=float(latitude),
-            longitude=float(longitude),
+            latitude=latitude,
+            longitude=longitude,
             azimuth=entry.options[CONF_AZIMUTH] - 180,
             base_url=entry.options[CONF_BASE_URL],
             ac_kwp=ac_kwp,
-            dc_kwp=(entry.options[CONF_MODULES_POWER] / 1000),
+            dc_kwp=entry.options[CONF_MODULES_POWER] / 1000,
             declination=entry.options[CONF_DECLINATION],
             efficiency_factor=entry.options[CONF_EFFICIENCY_FACTOR],
             damping_morning=entry.options.get(CONF_DAMPING_MORNING, 0.0),
@@ -71,46 +70,49 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
             weather_model=entry.options.get(CONF_MODEL, "best_match"),
         )
 
-        update_interval = timedelta(minutes=30)
-        super().__init__(hass, LOGGER, name=DOMAIN, update_interval=update_interval)
+        super().__init__(
+            hass,
+            LOGGER,
+            name=DOMAIN,
+            update_interval=timedelta(minutes=30)
+        )
 
     async def _async_update_data(self) -> Estimate:
-        """Fetch Open-Meteo Solar Forecast estimates."""
+        """Mise à jour des données avec intégration de la nébulosité."""
         try:
-            # Fetch hourly cloud cover from open-meteo.com
-            cloud_cover_data = await self._fetch_hourly_cloud_cover()
+            # Récupération des données de nébulosité
+            cloud_data = await self._fetch_cloud_cover()
             
-            # Adjust the forecast with cloud cover data
-            estimate = await self.forecast.estimate(cloud_cover_data)
-
-            LOGGER.debug("Received estimate data: %s", estimate)
+            # Mise à jour de l'estimation avec les nouvelles données
+            estimate = await self.forecast.estimate()
+            
+            # Intégration manuelle des données de nébulosité
+            self._apply_cloud_adjustments(estimate, cloud_data)
+            
             return estimate
-        except Exception as error:
-            LOGGER.error("Error fetching data: %s", error)
-            raise OpenMeteoSolarForecastUpdateFailed(f"Error fetching data: {error}") from error
-
-    async def _fetch_hourly_cloud_cover(self) -> list:
-        """Fetch hourly cloud cover data from open-meteo.com."""
-        latitude = clean_value(str(self.forecast.latitude))
-        longitude = clean_value(str(self.forecast.longitude))
-
-
-        LOGGER.debug("Fetching cloud cover data for latitude: %s, longitude: %s", latitude, longitude)
-        
-        # Example URL: https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&hourly=cloud_cover
-        url = f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&hourly=cloud_cover"
-
-        LOGGER.debug("Fetching cloud cover data from URL: %s", url)
-        
-        async with self.forecast.session.get(url) as response:
-            if response.status != 200:
-                response_text = await response.text()
-                LOGGER.error("Failed to fetch cloud cover data: %s. Response: %s", response.status, response_text)
-                raise Exception(f"Failed to fetch cloud cover data: {response.status}")
             
-            data = await response.json()
-            LOGGER.debug("Received cloud cover data: %s", data)
-            
-            cloud_cover_data = data.get("hourly", {}).get("cloud_cover", [])
-            LOGGER.debug("Extracted cloud_cover data: %s", cloud_cover_data)
-            return cloud_cover_data
+        except Exception as err:
+            LOGGER.error("Erreur de mise à jour : %s", err, exc_info=True)
+            raise OpenMeteoSolarForecastUpdateFailed(f"Erreur : {err}") from err
+
+    async def _fetch_cloud_cover(self) -> list[float]:
+        """Récupération des données de couverture nuageuse."""
+        url = (
+            f"{self.forecast.base_url}/v1/forecast?"
+            f"latitude={self.forecast.latitude}&"
+            f"longitude={self.forecast.longitude}&"
+            "hourly=cloud_cover"
+        )
+        
+        async with self.forecast.session.get(url) as resp:
+            resp.raise_for_status()
+            data = await resp.json()
+            return data.get("hourly", {}).get("cloud_cover", [])
+
+    def _apply_cloud_adjustments(self, estimate: Estimate, cloud_data: list[float]) -> None:
+        """Application manuelle des ajustements liés à la nébulosité."""
+        if cloud_data:
+            adjustment_factor = 1 - sum(cloud_data) / (len(cloud_data) * 100)
+            estimate.energy_production_today *= adjustment_factor
+            estimate.energy_production_tomorrow *= adjustment_factor
+            LOGGER.debug("Ajustement appliqué avec facteur : %.2f", adjustment_factor)
