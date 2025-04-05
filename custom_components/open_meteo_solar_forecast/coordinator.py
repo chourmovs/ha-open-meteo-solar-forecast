@@ -91,8 +91,9 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
 
     async def _fetch_hourly_cloud_cover(self) -> list:
         """Fetch hourly cloud cover data from open-meteo.com."""
-        latitude = clean_value(self.forecast.latitude)
-        longitude = clean_value(self.forecast.longitude)
+        latitude = str(self.forecast.latitude)
+        longitude = str(self.forecast.longitude)
+
 
         LOGGER.debug("Fetching cloud cover data for latitude: %s, longitude: %s", latitude, longitude)
         
