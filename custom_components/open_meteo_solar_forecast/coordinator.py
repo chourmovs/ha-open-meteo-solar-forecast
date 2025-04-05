@@ -35,14 +35,21 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator):
         latitude = entry.data[CONF_LATITUDE]
         longitude = entry.data[CONF_LONGITUDE]
         
-        if not (-90 <= float(latitude) <= 90) or not (-180 <= float(longitude) <= 180):
+        # Ensure latitude and longitude are valid numbers
+        if not isinstance(latitude, (int, float, str)) or not isinstance(longitude, (int, float, str)):
+            raise ValueError("Latitude and longitude must be numbers or strings")
+
+        latitude = float(latitude)
+        longitude = float(longitude)
+
+        if not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180):
             raise ValueError("Invalid latitude or longitude values")
 
         self.forecast = OpenMeteoSolarForecast(
             api_key=entry.data.get(CONF_API_KEY),
             session=async_get_clientsession(hass),
-            latitude=float(latitude),
-            longitude=float(longitude),
+            latitude=latitude,
+            longitude=longitude,
             azimuth=entry.options[CONF_AZIMUTH] - 180,
             base_url=entry.options[CONF_BASE_URL],
             ac_kwp=entry.options[CONF_INVERTER_POWER],
@@ -75,8 +82,8 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _fetch_hourly_cloud_cover(self) -> list:
         """Fetch hourly cloud cover data from open-meteo.com."""
-        latitude = round(float(self.forecast.latitude), 2)
-        longitude = round(float(self.forecast.longitude), 2)
+        latitude = round(self.forecast.latitude, 2)
+        longitude = round(self.forecast.longitude, 2)
 
         LOGGER.debug("Fetching cloud cover data for latitude: %s, longitude: %s", latitude, longitude)
         
