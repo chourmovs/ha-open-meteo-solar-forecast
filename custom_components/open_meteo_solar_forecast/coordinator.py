@@ -26,18 +26,23 @@ from .const import (
     LOGGER,
 )
 from .exceptions import OpenMeteoSolarForecastUpdateFailed
-import pandas as pd 
 
 class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator):
     """DataUpdateCoordinator for the Open-Meteo Solar Forecast integration."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize the coordinator."""
+        latitude = round(float(entry.data[CONF_LATITUDE]), 2)
+        longitude = round(float(entry.data[CONF_LONGITUDE]), 2)
+        
+        if not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180):
+            raise ValueError("Invalid latitude or longitude values")
+
         self.forecast = OpenMeteoSolarForecast(
             api_key=entry.data.get(CONF_API_KEY),
             session=async_get_clientsession(hass),
-            latitude=entry.data[CONF_LATITUDE],
-            longitude=entry.data[CONF_LONGITUDE],
+            latitude=latitude,
+            longitude=longitude,
             azimuth=entry.options[CONF_AZIMUTH] - 180,
             base_url=entry.options[CONF_BASE_URL],
             ac_kwp=entry.options[CONF_INVERTER_POWER],
@@ -70,8 +75,13 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _fetch_hourly_cloud_cover(self) -> list:
         """Fetch hourly cloud cover data from open-meteo.com."""
+        latitude = round(self.forecast.latitude, 2)
+        longitude = round(self.forecast.longitude, 2)
+
+        LOGGER.debug("Fetching cloud cover data for latitude: %s, longitude: %s", latitude, longitude)
+        
         # Example URL: https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&hourly=cloud_cover
-        url = f"https://api.open-meteo.com/v1/forecast?latitude={self.forecast.latitude}&longitude={self.forecast.longitude}&hourly=cloud_cover"
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&hourly=cloud_cover"
 
         LOGGER.debug("Fetching cloud cover data from URL: %s", url)
         
