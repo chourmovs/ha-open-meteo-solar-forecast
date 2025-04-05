@@ -116,6 +116,12 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
             LOGGER.warning("No cloud cover data available for adjustment")
             return
         
+            # Enregistrer les valeurs avant ajustement
+        LOGGER.debug("BEFORE ADJUSTMENT - Sample watts values: %s", 
+                    {str(k): v for k, v in list(estimate.watts.items())[:5]})
+        LOGGER.debug("BEFORE ADJUSTMENT - Sample wh_period values: %s", 
+                    {str(k): v for k, v in list(estimate.wh_period.items())[:5]})
+        LOGGER.debug("BEFORE ADJUSTMENT - power_production_now: %s", estimate.power_production_now)
         # Adapter cette logique selon vos besoins spécifiques
         # Exemple simple: réduire la production en fonction du pourcentage de couverture nuageuse
         
@@ -148,6 +154,13 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
             adjustment_factor = 1.0 - (day_cloud_cover / 100.0 * 0.7)
             estimate.wh_days[day] = wh * adjustment_factor
         
+
+            # Enregistrer les valeurs après ajustement
+        LOGGER.debug("AFTER ADJUSTMENT - Sample watts values: %s", 
+                    {str(k): v for k, v in list(estimate.watts.items())[:5]})
+        LOGGER.debug("AFTER ADJUSTMENT - Sample wh_period values: %s", 
+                    {str(k): v for k, v in list(estimate.wh_period.items())[:5]})
+        LOGGER.debug("AFTER ADJUSTMENT - power_production_now: %s", estimate.power_production_now)
         # Ne pas essayer de modifier power_production_now directement
         # La classe Estimate recalcule probablement cette valeur automatiquement
         # à partir des autres propriétés que nous avons modifiées

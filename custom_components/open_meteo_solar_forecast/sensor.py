@@ -1,7 +1,6 @@
 """Support for the Open-Meteo Solar Forecast sensor service."""
 
 from __future__ import annotations
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -40,212 +39,80 @@ class OpenMeteoSolarForecastSensorEntityDescription(SensorEntityDescription):
 
 SENSORS: tuple[OpenMeteoSolarForecastSensorEntityDescription, ...] = (
     OpenMeteoSolarForecastSensorEntityDescription(
-        key="energy_production_today",
-        translation_key="energy_production_today",
-        state=lambda estimate: estimate.energy_production_today,
-        device_class=SensorDeviceClass.ENERGY,
-        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
-        suggested_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        suggested_display_precision=1,
-    ),
-    OpenMeteoSolarForecastSensorEntityDescription(
-        key="energy_production_today_remaining",
-        translation_key="energy_production_today_remaining",
-        state=lambda estimate: estimate.energy_production_today_remaining,
-        device_class=SensorDeviceClass.ENERGY,
-        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
-        suggested_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        suggested_display_precision=1,
-    ),
-    OpenMeteoSolarForecastSensorEntityDescription(
-        key="energy_production_tomorrow",
-        translation_key="energy_production_tomorrow",
-        state=lambda estimate: estimate.energy_production_tomorrow,
-        device_class=SensorDeviceClass.ENERGY,
-        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
-        suggested_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        suggested_display_precision=1,
-    ),
-    OpenMeteoSolarForecastSensorEntityDescription(
-        key="energy_production_d2",
-        translation_key="energy_production_d2",
-        state=lambda estimate: estimate.day_production(
-            estimate.now().date() + timedelta(days=2)
-        ),
-        device_class=SensorDeviceClass.ENERGY,
-        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
-        suggested_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        suggested_display_precision=1,
-    ),
-    OpenMeteoSolarForecastSensorEntityDescription(
-        key="energy_production_d3",
-        translation_key="energy_production_d3",
-        state=lambda estimate: estimate.day_production(
-            estimate.now().date() + timedelta(days=3)
-        ),
-        device_class=SensorDeviceClass.ENERGY,
-        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
-        suggested_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        suggested_display_precision=1,
-    ),
-    OpenMeteoSolarForecastSensorEntityDescription(
-        key="energy_production_d4",
-        translation_key="energy_production_d4",
-        state=lambda estimate: estimate.day_production(
-            estimate.now().date() + timedelta(days=4)
-        ),
-        device_class=SensorDeviceClass.ENERGY,
-        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
-        suggested_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        suggested_display_precision=1,
-    ),
-    OpenMeteoSolarForecastSensorEntityDescription(
-        key="energy_production_d5",
-        translation_key="energy_production_d5",
-        state=lambda estimate: estimate.day_production(
-            estimate.now().date() + timedelta(days=5)
-        ),
-        device_class=SensorDeviceClass.ENERGY,
-        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
-        suggested_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        suggested_display_precision=1,
-    ),
-    OpenMeteoSolarForecastSensorEntityDescription(
-        key="energy_production_d6",
-        translation_key="energy_production_d6",
-        state=lambda estimate: estimate.day_production(
-            estimate.now().date() + timedelta(days=6)
-        ),
-        device_class=SensorDeviceClass.ENERGY,
-        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
-        suggested_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        suggested_display_precision=1,
-    ),
-    OpenMeteoSolarForecastSensorEntityDescription(
-        key="energy_production_d7",
-        translation_key="energy_production_d7",
-        state=lambda estimate: estimate.day_production(
-            estimate.now().date() + timedelta(days=7)
-        ),
-        device_class=SensorDeviceClass.ENERGY,
-        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
-        suggested_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        suggested_display_precision=1,
-    ),
-    OpenMeteoSolarForecastSensorEntityDescription(
-        key="power_highest_peak_time_today",
-        translation_key="power_highest_peak_time_today",
-        device_class=SensorDeviceClass.TIMESTAMP,
-    ),
-    OpenMeteoSolarForecastSensorEntityDescription(
-        key="power_highest_peak_time_tomorrow",
-        translation_key="power_highest_peak_time_tomorrow",
-        device_class=SensorDeviceClass.TIMESTAMP,
-    ),
-    OpenMeteoSolarForecastSensorEntityDescription(
-        key="power_production_now",
-        translation_key="power_production_now",
+        key="power_now",
+        name="Power production now",
+        native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
-        state=lambda estimate: estimate.power_production_now,
         state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=UnitOfPower.WATT,
+        state=lambda data: int(data.power_production_now),
     ),
     OpenMeteoSolarForecastSensorEntityDescription(
-        key="power_production_next_15minutes",
-        translation_key="power_production_next_15minutes",
-        state=lambda estimate: estimate.power_production_at_time(
-            estimate.now() + timedelta(minutes=15)
-        ),
-        device_class=SensorDeviceClass.POWER,
-        entity_registry_enabled_default=False,
-        native_unit_of_measurement=UnitOfPower.WATT,
+        key="energy_today",
+        name="Energy production today",
+        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        state=lambda data: int(data.energy_production_today),
     ),
     OpenMeteoSolarForecastSensorEntityDescription(
-        key="power_production_next_30minutes",
-        translation_key="power_production_next_30minutes",
-        state=lambda estimate: estimate.power_production_at_time(
-            estimate.now() + timedelta(minutes=30)
-        ),
-        device_class=SensorDeviceClass.POWER,
-        entity_registry_enabled_default=False,
-        native_unit_of_measurement=UnitOfPower.WATT,
+        key="energy_today_remaining",
+        name="Energy production today remaining",
+        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        state=lambda data: int(data.energy_production_today_remaining),
     ),
     OpenMeteoSolarForecastSensorEntityDescription(
-        key="power_production_next_hour",
-        translation_key="power_production_next_hour",
-        state=lambda estimate: estimate.power_production_at_time(
-            estimate.now() + timedelta(hours=1)
-        ),
-        device_class=SensorDeviceClass.POWER,
-        entity_registry_enabled_default=False,
-        native_unit_of_measurement=UnitOfPower.WATT,
-    ),
-    OpenMeteoSolarForecastSensorEntityDescription(
-        key="power_production_next_12hours",
-        translation_key="power_production_next_12hours",
-        state=lambda estimate: estimate.power_production_at_time(
-            estimate.now() + timedelta(hours=12)
-        ),
-        device_class=SensorDeviceClass.POWER,
-        entity_registry_enabled_default=False,
-        native_unit_of_measurement=UnitOfPower.WATT,
-    ),
-    OpenMeteoSolarForecastSensorEntityDescription(
-        key="power_production_next_24hours",
-        translation_key="power_production_next_24hours",
-        state=lambda estimate: estimate.power_production_at_time(
-            estimate.now() + timedelta(hours=24)
-        ),
-        device_class=SensorDeviceClass.POWER,
-        entity_registry_enabled_default=False,
-        native_unit_of_measurement=UnitOfPower.WATT,
+        key="energy_tomorrow",
+        name="Energy production tomorrow",
+        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        state=lambda data: int(data.energy_production_tomorrow),
     ),
     OpenMeteoSolarForecastSensorEntityDescription(
         key="energy_current_hour",
-        translation_key="energy_current_hour",
-        state=lambda estimate: estimate.energy_current_hour,
-        device_class=SensorDeviceClass.ENERGY,
+        name="Energy current hour",
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
-        suggested_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        suggested_display_precision=1,
-    ),
-    OpenMeteoSolarForecastSensorEntityDescription(
-        key="energy_next_hour",
-        translation_key="energy_next_hour",
-        state=lambda estimate: estimate.sum_energy_production(1),
         device_class=SensorDeviceClass.ENERGY,
-        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
-        suggested_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        suggested_display_precision=1,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        state=lambda data: int(data.energy_current_hour),
     ),
 )
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Defer sensor setup to the shared sensor module."""
-    coordinator: OpenMeteoSolarForecastDataUpdateCoordinator = hass.data[DOMAIN][
-        entry.entry_id
-    ]
+    """Set up the Open-Meteo Solar Forecast sensor entries."""
+    coordinator = hass.data[DOMAIN][entry.entry_id]
 
-    async_add_entities(
-        OpenMeteoSolarForecastSensorEntity(
+    entities = []
+    for description in SENSORS:
+        entity = OpenMeteoSolarForecastSensor(
             entry_id=entry.entry_id,
             coordinator=coordinator,
-            entity_description=entity_description,
+            entity_description=description,
         )
-        for entity_description in SENSORS
+        entities.append(entity)
+
+    # Ajout du capteur de débogage de nébulosité
+    entities.append(
+        OpenMeteoSolarCloudCoverDebugSensor(
+            entry_id=entry.entry_id,
+            coordinator=coordinator,
+        )
     )
 
+    async_add_entities(entities)
 
-class OpenMeteoSolarForecastSensorEntity(
-    CoordinatorEntity[OpenMeteoSolarForecastDataUpdateCoordinator], SensorEntity
-):
-    """Defines a Open-Meteo sensor."""
+
+class OpenMeteoSolarForecastSensor(CoordinatorEntity[OpenMeteoSolarForecastDataUpdateCoordinator], SensorEntity):
+    """Representation of an Open-Meteo Solar Forecast sensor."""
 
     entity_description: OpenMeteoSolarForecastSensorEntityDescription
-    _attr_has_entity_name = True
 
     def __init__(
         self,
@@ -269,71 +136,160 @@ class OpenMeteoSolarForecastSensorEntity(
         )
 
     async def _update_callback(self, now: datetime) -> None:
-        """Update the entity without fetching data from server.
-
-        This is required for the power_production_* sensors to update
-        as they take data in 15-minute intervals and the update interval
-        is 30 minutes."""
+        """Update the entity without fetching data from server."""
         self.async_write_ha_state()
 
-    async def async_added_to_hass(self) -> None:
-        """Register callbacks."""
-        await super().async_added_to_hass()
+    @property
+    def native_value(self) -> StateType:
+        """Return the state of the entity."""
+        if not self.coordinator.data:
+            return None
 
-        # Update the state of the sensor every minute without
-        # fetching new data from the server.
-        async_track_utc_time_change(
-            self.hass,
-            self._update_callback,
-            second=0,
+        if self.entity_description.state:
+            return self.entity_description.state(self.coordinator.data)
+
+        return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the state attributes."""
+        if not self.coordinator.data:
+            return {}
+
+        attrs = {}
+
+        if self.entity_description.key == "power_now":
+            attrs[ATTR_WATTS] = {
+                watt_datetime.isoformat(): watt_value
+                for watt_datetime, watt_value in self.coordinator.data.watts.items()
+            }
+
+        if self.entity_description.key in [
+            "energy_today",
+            "energy_tomorrow",
+            "energy_current_hour",
+        ]:
+            attrs[ATTR_WH_PERIOD] = {
+                wh_datetime.isoformat(): wh_value
+                for wh_datetime, wh_value in self.coordinator.data.wh_period.items()
+            }
+
+        # Ajouter les informations d'ajustement de nébulosité pour tous les capteurs
+        if hasattr(self.coordinator, "adjustment_stats"):
+            attrs["cloud_cover_adjustment"] = self.coordinator.adjustment_stats
+
+        return attrs
+
+
+class OpenMeteoSolarCloudCoverDebugSensor(CoordinatorEntity[OpenMeteoSolarForecastDataUpdateCoordinator], SensorEntity):
+    """Capteur de débogage pour les ajustements de nébulosité."""
+
+    def __init__(
+        self,
+        *,
+        entry_id: str,
+        coordinator: OpenMeteoSolarForecastDataUpdateCoordinator,
+    ) -> None:
+        """Initialize the debug sensor."""
+        super().__init__(coordinator=coordinator)
+        self._attr_name = "Solar Forecast Cloud Cover Debug"
+        self.entity_id = f"{SENSOR_DOMAIN}.solar_forecast_cloud_debug"
+        self._attr_unique_id = f"{entry_id}_cloud_debug"
+        self._attr_should_poll = False
+        self._attr_entity_registry_enabled_default = False  # Désactivé par défaut
+
+        self._attr_device_info = DeviceInfo(
+            entry_type=DeviceEntryType.SERVICE,
+            identifiers={(DOMAIN, entry_id)},
+            manufacturer="Open-Meteo",
+            name="Solar production forecast",
+            configuration_url="https://open-meteo.com",
         )
 
     @property
-    def native_value(self) -> datetime | StateType:
-        """Return the state of the sensor."""
-        if self.entity_description.state is None:
-            state: StateType | datetime = getattr(
-                self.coordinator.data, self.entity_description.key
-            )
-        else:
-            state = self.entity_description.state(self.coordinator.data)
-
-        return state
+    def native_value(self) -> str:
+        """Return a simple state value."""
+        if hasattr(self.coordinator, "adjustment_stats"):
+            adjustment = self.coordinator.adjustment_stats.get("adjustment_percentage", 0)
+            return f"{adjustment:.1f}%"
+        return "No data"
 
     @property
-    def extra_state_attributes(self) -> dict[str, Any] | None:
-        """Return the state attributes."""
-        if self.entity_description.key.startswith(
-            "energy_production_d"
-        ) or self.entity_description.key in (
-            "energy_production_today",
-            "energy_production_tomorrow",
-        ):
-            target_date = self.coordinator.data.now().date()
-            if self.entity_description.key == "energy_production_tomorrow":
-                target_date += timedelta(days=1)
-            elif self.entity_description.key.startswith("energy_production_d"):
-                target_date += timedelta(
-                    days=int(self.entity_description.key[len("energy_production_d") :])
-                )
-            elif self.entity_description.key == "energy_production_today":
-                pass  # target_date is already set to today
-            else:
-                raise ValueError(
-                    f"Unexpected key {self.entity_description.key} for extra_state_attributes"
-                )
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return detailed debug attributes."""
+        if not self.coordinator.data:
+            return {"status": "No data available"}
 
-            return {
-                ATTR_WATTS: {
-                    watt_datetime.isoformat(): watt_value
-                    for watt_datetime, watt_value in self.coordinator.data.watts.items()
-                    if watt_datetime.date() == target_date
-                },
-                ATTR_WH_PERIOD: {
-                    wh_datetime.isoformat(): wh_value
-                    for wh_datetime, wh_value in self.coordinator.data.wh_period.items()
-                    if wh_datetime.date() == target_date
-                },
+        attrs = {}
+        
+        # Échantillon de valeurs watts avant/après ajustement
+        if hasattr(self.coordinator, "original_values") and self.coordinator.original_values:
+            # Prendre jusqu'à 5 points de données pour l'échantillon
+            sample_watts = {}
+            sample_wh_period = {}
+            
+            # Original values
+            orig_watts = self.coordinator.original_values.get("watts", {})
+            orig_wh = self.coordinator.original_values.get("wh_period", {})
+            
+            # Current values
+            current_watts = {
+                dt.isoformat(): val 
+                for dt, val in self.coordinator.data.watts.items()
             }
-
-        return None
+            current_wh = {
+                dt.isoformat(): val 
+                for dt, val in self.coordinator.data.wh_period.items()
+            }
+            
+            # Échantillon des 5 premières heures
+            timestamps = list(orig_watts.keys())[:5]
+            for ts in timestamps:
+                orig_val = orig_watts.get(ts, 0)
+                curr_val = current_watts.get(ts, 0)
+                diff_pct = ((curr_val - orig_val) / orig_val * 100) if orig_val else 0
+                
+                sample_watts[ts] = {
+                    "original": orig_val,
+                    "adjusted": curr_val,
+                    "difference_percent": f"{diff_pct:.1f}%"
+                }
+                
+                if ts in orig_wh:
+                    orig_val = orig_wh.get(ts, 0)
+                    curr_val = current_wh.get(ts, 0)
+                    diff_pct = ((curr_val - orig_val) / orig_val * 100) if orig_val else 0
+                    
+                    sample_wh_period[ts] = {
+                        "original": orig_val,
+                        "adjusted": curr_val,
+                        "difference_percent": f"{diff_pct:.1f}%"
+                    }
+            
+            attrs["sample_watts"] = sample_watts
+            attrs["sample_wh_period"] = sample_wh_period
+        
+        # Informations d'ajustement
+        if hasattr(self.coordinator, "adjustment_stats"):
+            attrs["adjustment_stats"] = self.coordinator.adjustment_stats
+            
+        # Échantillon de données de nébulosité
+        if hasattr(self.coordinator, "cloud_cover_data"):
+            # Prendre les 24 premières heures pour l'affichage
+            cloud_data = self.coordinator.cloud_cover_data[:24] if self.coordinator.cloud_cover_data else []
+            
+            hours = {}
+            for i, cover in enumerate(cloud_data):
+                # Formater l'heure
+                hour_str = f"{i:02d}:00"
+                # Calculer le facteur d'ajustement
+                adjustment = 1.0 - (cover / 100.0 * 0.7)
+                hours[hour_str] = {
+                    "cloud_cover": f"{cover}%",
+                    "adjustment_factor": f"{adjustment:.2f}"
+                }
+            
+            attrs["hourly_cloud_cover"] = hours
+            attrs["cloud_cover_formula"] = "adjustment = 1.0 - (cloud_cover_percent / 100 * 0.7)"
+            
+        return attrs
