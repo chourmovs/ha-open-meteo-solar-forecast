@@ -25,14 +25,16 @@ from .const import (
 from .exceptions import OpenMeteoSolarForecastUpdateFailed
 
 def clean_value(value):
-    """Nettoyage et validation des valeurs numériques."""
+    """Nettoie et convertit les valeurs numériques de manière robuste."""
     try:
-        cleaned = round(float(str(value).strip('[]')), 6)
-        LOGGER.debug("Valeur nettoyée : %s", cleaned)
-        return cleaned
-    except ValueError as err:
-        LOGGER.error("Erreur de conversion numérique : %s", err)
-        raise ValueError(f"Valeur numérique invalide : {value}") from err
+        # Gère les listes, strings avec brackets et différents séparateurs
+        if isinstance(value, (list, tuple)):
+            value = value[0]
+        str_value = str(value).replace('[', '').replace(']', '').strip()
+        return round(float(str_value), 6)  # Conserve la précision originale
+    except (ValueError, IndexError, TypeError) as err:
+        LOGGER.error("Erreur de nettoyage de valeur : %s", err)
+        raise ValueError(f"Valeur invalide: {value}") from err
 
 class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate]):
     """Coordinateur de mise à jour des données solaires."""
@@ -97,10 +99,11 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
 
     async def _fetch_cloud_cover(self) -> list[float]:
         """Récupération des données de couverture nuageuse."""
+        # Utilisation directe des floats nettoyés sans conversion supplémentaire
         url = (
             f"{self.forecast.base_url}/v1/forecast?"
-            f"latitude={self.forecast.latitude}&"
-            f"longitude={self.forecast.longitude}&"
+            f"latitude={self.forecast.latitude:.6f}&"  # Formatage décimal direct
+            f"longitude={self.forecast.longitude:.6f}&"
             "hourly=cloud_cover"
         )
         
