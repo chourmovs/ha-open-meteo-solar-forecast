@@ -24,13 +24,13 @@ from .const import (
 )
 from .exceptions import OpenMeteoSolarForecastUpdateFailed
 
-def clean_value(value):
-    """Gère tous les formats de coordonnées (listes, strings avec crochets, etc.)"""
+def clean_value(value) -> float:
+    """Convertit robustement n'importe quel format de coordonnées en float."""
     try:
-        # Extraction de la valeur numérique quel que soit le format d'entrée
+        # Gère les listes, strings avec crochets et autres formats
         if isinstance(value, (list, tuple)):
             value = value[0]
-        return round(float(str(value).replace('[', '').replace(']', '')), 6)
+        return round(float(str(value).strip('[]')), 6)
     except (TypeError, ValueError, IndexError) as err:
         LOGGER.error("Erreur de conversion GPS : %s", err)
         raise ValueError(f"Coordonnée invalide : {value}") from err
@@ -97,19 +97,22 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
             raise OpenMeteoSolarForecastUpdateFailed(f"Erreur : {err}") from err
 
     async def _fetch_cloud_cover(self) -> list[float]:
-        """Récupération des données de nébulosité"""
-        # Utilisation directe des floats déjà validés
+        """Récupère les données de couverture nuageuse avec validation finale."""
+        # Extraction sécurisée des valeurs numériques
+        lat = self.forecast.latitude
+        lon = self.forecast.longitude
+        
+        # Validation de type redondante
+        if isinstance(lat, (list, tuple)):
+            lat = lat[0]
+            LOGGER.warning("Latitude corrigée (liste -> float) : %s", lat)
+            
         url = (
             f"{self.forecast.base_url}/v1/forecast?"
-            f"latitude={self.forecast.latitude:.6f}&"
-            f"longitude={self.forecast.longitude:.6f}&"
+            f"latitude={float(lat):.6f}&"
+            f"longitude={float(lon):.6f}&"
             "hourly=cloud_cover"
         )
-        
-        async with self.forecast.session.get(url) as resp:
-            resp.raise_for_status()
-            data = await resp.json()
-            return data.get("hourly", {}).get("cloud_cover", [])
 
     def _apply_cloud_adjustments(self, estimate: Estimate, cloud_data: list[float]) -> None:
         """Application manuelle des ajustements liés à la nébulosité."""
