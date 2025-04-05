@@ -9,8 +9,6 @@ from homeassistant.const import CONF_API_KEY, CONF_LATITUDE, CONF_LONGITUDE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
-from homeassistant.helpers.aiohttp_client import async_get_clientsession  # noqa: F811
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator  # noqa: F811
 from open_meteo_solar_forecast import Estimate, OpenMeteoSolarForecast
 
 from .const import (
@@ -22,47 +20,50 @@ from .const import (
     CONF_EFFICIENCY_FACTOR,
     CONF_INVERTER_POWER,
     CONF_MODULES_POWER,
+    CONF_MODEL,
     DOMAIN,
     LOGGER,
 )
 from .exceptions import OpenMeteoSolarForecastUpdateFailed
 
-class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator):
-    """DataUpdateCoordinator for the Open-Meteo Solar Forecast integration."""
+class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate]):
+    """The Solar Forecast Data Update Coordinator."""
+    config_entry: ConfigEntry
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
-        """Initialize the coordinator."""
-        latitude = entry.data[CONF_LATITUDE]
-        longitude = entry.data[CONF_LONGITUDE]
-        
-        # Ensure latitude and longitude are valid numbers
-        if not isinstance(latitude, (int, float, str)) or not isinstance(longitude, (int, float, str)):
-            raise ValueError("Latitude and longitude must be numbers or strings")
+        """Initialize the Solar Forecast coordinator."""
+        self.config_entry = entry
+        # Our option flow may cause it to be an empty string,
+        # this if statement is here to catch that.
+        api_key = entry.options.get(CONF_API_KEY) or None
+        # Handle new options that were added after the initial release
+        ac_kwp = entry.options.get(CONF_INVERTER_POWER, 0)
+        ac_kwp = ac_kwp / 1000 if ac_kwp else None
 
-        latitude = float(latitude)
-        longitude = float(longitude)
+        # Ensure latitude and longitude are valid numbers
+        latitude = round(float(entry.data[CONF_LATITUDE]), 2)
+        longitude = round(float(entry.data[CONF_LONGITUDE]), 2)
 
         if not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180):
             raise ValueError("Invalid latitude or longitude values")
 
         self.forecast = OpenMeteoSolarForecast(
-            api_key=entry.data.get(CONF_API_KEY),
+            api_key=api_key,
             session=async_get_clientsession(hass),
             latitude=latitude,
             longitude=longitude,
             azimuth=entry.options[CONF_AZIMUTH] - 180,
             base_url=entry.options[CONF_BASE_URL],
-            ac_kwp=entry.options[CONF_INVERTER_POWER],
+            ac_kwp=ac_kwp,
             dc_kwp=(entry.options[CONF_MODULES_POWER] / 1000),
             declination=entry.options[CONF_DECLINATION],
             efficiency_factor=entry.options[CONF_EFFICIENCY_FACTOR],
             damping_morning=entry.options.get(CONF_DAMPING_MORNING, 0.0),
             damping_evening=entry.options.get(CONF_DAMPING_EVENING, 0.0),
-            weather_model=entry.options.get("model", "best_match"),
+            weather_model=entry.options.get(CONF_MODEL, "best_match"),
         )
 
         update_interval = timedelta(minutes=30)
-
         super().__init__(hass, LOGGER, name=DOMAIN, update_interval=update_interval)
 
     async def _async_update_data(self) -> Estimate:
@@ -82,8 +83,8 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _fetch_hourly_cloud_cover(self) -> list:
         """Fetch hourly cloud cover data from open-meteo.com."""
-        latitude = round(self.forecast.latitude, 2)
-        longitude = round(self.forecast.longitude, 2)
+        latitude = self.forecast.latitude
+        longitude = self.forecast.longitude
 
         LOGGER.debug("Fetching cloud cover data for latitude: %s, longitude: %s", latitude, longitude)
         
