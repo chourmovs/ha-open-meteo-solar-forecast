@@ -26,6 +26,12 @@ from .const import (
 )
 from .exceptions import OpenMeteoSolarForecastUpdateFailed
 
+def clean_value(value):
+    """Remove brackets and convert to float."""
+    if isinstance(value, str):
+        value = value.strip('[]')
+    return round(float(value), 2)
+
 class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate]):
     """The Solar Forecast Data Update Coordinator."""
     config_entry: ConfigEntry
@@ -41,8 +47,8 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
         ac_kwp = ac_kwp / 1000 if ac_kwp else None
 
         # Ensure latitude and longitude are valid numbers
-        latitude = round(float(entry.data[CONF_LATITUDE]), 2)
-        longitude = round(float(entry.data[CONF_LONGITUDE]), 2)
+        latitude = clean_value(entry.data[CONF_LATITUDE])
+        longitude = clean_value(entry.data[CONF_LONGITUDE])
 
         if not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180):
             raise ValueError("Invalid latitude or longitude values")
