@@ -69,6 +69,11 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
             weather_model=entry.options.get(CONF_MODEL, "best_match"),
         )
 
+        # Initialiser les attributs pour le débogage
+        self.cloud_cover_data = []
+        self.original_values = {}
+        self.adjustment_stats = {}
+
         update_interval = timedelta(minutes=30)
 
         super().__init__(hass, LOGGER, name=DOMAIN, update_interval=update_interval)
@@ -116,19 +121,30 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
             LOGGER.warning("No cloud cover data available for adjustment")
             return
         
-            # Enregistrer les valeurs avant ajustement
+        # Stocker les données de nébulosité pour y accéder depuis le capteur de débogage
+        self.cloud_cover_data = cloud_cover_data
+        
+        # Sauvegarder les valeurs originales avant ajustement pour comparaison
+        original_values = {
+            "watts": {str(k): v for k, v in estimate.watts.items()},
+            "wh_period": {str(k): v for k, v in estimate.wh_period.items()},
+            "wh_days": {str(k): v for k, v in estimate.wh_days.items()},
+            "power_production_now": estimate.power_production_now,
+            "energy_production_today": estimate.energy_production_today,
+            "energy_production_tomorrow": estimate.energy_production_tomorrow
+        }
+        self.original_values = original_values
+        
+        # Somme totale avant ajustement pour calculer le pourcentage
+        total_energy_before = sum(estimate.wh_period.values())
+        
         LOGGER.debug("BEFORE ADJUSTMENT - Sample watts values: %s", 
                     {str(k): v for k, v in list(estimate.watts.items())[:5]})
-        LOGGER.debug("BEFORE ADJUSTMENT - Sample wh_period values: %s", 
-                    {str(k): v for k, v in list(estimate.wh_period.items())[:5]})
         LOGGER.debug("BEFORE ADJUSTMENT - power_production_now: %s", estimate.power_production_now)
-        # Adapter cette logique selon vos besoins spécifiques
-        # Exemple simple: réduire la production en fonction du pourcentage de couverture nuageuse
         
         # Ajuster les watts (puissance instantanée)
-        for timestamp, watts in list(estimate.watts.items()):  # Utiliser list() pour éviter les erreurs de modification pendant l'itération
-            # Trouver l'indice correspondant dans cloud_cover_data (en supposant que les timestamps sont alignés)
-            # Cette partie peut nécessiter une logique plus complexe pour faire correspondre les timestamps
+        for timestamp, watts in list(estimate.watts.items()):  # list() pour éviter les erreurs de modification pendant l'itération
+            # Trouver l'indice correspondant dans cloud_cover_data
             hour_index = timestamp.hour  # Simplification - à adapter selon votre structure de données
             
             if 0 <= hour_index < len(cloud_cover_data):
@@ -150,25 +166,31 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
         for day, wh in list(estimate.wh_days.items()):
             # Calcul d'une moyenne de nébulosité pour cette journée
             # Cette partie est simplifiée et devra être adaptée à votre structure de données
-            day_cloud_cover = sum(cloud_cover_data[:24]) / 24  # Exemple très simplifié
+            day_cloud_cover = sum(cloud_cover_data[:24]) / min(24, len(cloud_cover_data))  # Exemple très simplifié
             adjustment_factor = 1.0 - (day_cloud_cover / 100.0 * 0.7)
             estimate.wh_days[day] = wh * adjustment_factor
         
-
-            # Enregistrer les valeurs après ajustement
-        LOGGER.debug("AFTER ADJUSTMENT - Sample watts values: %s", 
-                    {str(k): v for k, v in list(estimate.watts.items())[:5]})
-        LOGGER.debug("AFTER ADJUSTMENT - Sample wh_period values: %s", 
-                    {str(k): v for k, v in list(estimate.wh_period.items())[:5]})
-        LOGGER.debug("AFTER ADJUSTMENT - power_production_now: %s", estimate.power_production_now)
         # Ne pas essayer de modifier power_production_now directement
         # La classe Estimate recalcule probablement cette valeur automatiquement
-        # à partir des autres propriétés que nous avons modifiées
         
-        # Ne pas essayer de modifier les autres propriétés calculées
-        # comme energy_production_today, energy_production_today_remaining, etc.
-        # Ces valeurs sont probablement recalculées automatiquement
+        LOGGER.debug("AFTER ADJUSTMENT - Sample watts values: %s", 
+                    {str(k): v for k, v in list(estimate.watts.items())[:5]})
         
         # Log le résultat de l'ajustement
-        LOGGER.debug("Adjusted estimate with cloud cover data. Current watts: %s", 
-                    next(iter(estimate.watts.values()), 0) if estimate.watts else 0)
+        current_power = next(iter(estimate.watts.values()), 0) if estimate.watts else 0
+        LOGGER.debug("Adjusted estimate with cloud cover data. Current watts: %s", current_power)
+        
+        # Calculer les statistiques d'ajustement
+        total_energy_after = sum(estimate.wh_period.values())
+        adjustment_pct = ((total_energy_after - total_energy_before) / total_energy_before * 100) if total_energy_before else 0
+        
+        self.adjustment_stats = {
+            "average_cloud_cover": sum(cloud_cover_data[:24])/min(24, len(cloud_cover_data)) if cloud_cover_data else 0,
+            "total_energy_before_adjustment": total_energy_before,
+            "total_energy_after_adjustment": total_energy_after,
+            "adjustment_percentage": adjustment_pct
+        }
+        
+        LOGGER.debug("Adjustment stats: Cloud cover avg: %.1f%%, Energy adjustment: %.1f%%", 
+                    self.adjustment_stats["average_cloud_cover"],
+                    self.adjustment_stats["adjustment_percentage"])

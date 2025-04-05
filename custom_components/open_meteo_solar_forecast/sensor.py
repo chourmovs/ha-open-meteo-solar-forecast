@@ -223,7 +223,6 @@ SENSORS: tuple[OpenMeteoSolarForecastSensorEntityDescription, ...] = (
     ),
 )
 
-
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
@@ -231,25 +230,34 @@ async def async_setup_entry(
     coordinator: OpenMeteoSolarForecastDataUpdateCoordinator = hass.data[DOMAIN][
         entry.entry_id
     ]
-
-    async_add_entities(
-        OpenMeteoSolarForecastSensorEntity(
+    entities = []
+    
+    # Ajouter tous les capteurs standard
+    for entity_description in SENSORS:
+        entities.append(
+            OpenMeteoSolarForecastSensorEntity(
+                entry_id=entry.entry_id,
+                coordinator=coordinator,
+                entity_description=entity_description,
+            )
+        )
+    
+    # Ajouter le capteur de débogage de nébulosité
+    entities.append(
+        OpenMeteoSolarCloudCoverDebugSensor(
             entry_id=entry.entry_id,
             coordinator=coordinator,
-            entity_description=entity_description,
         )
-        for entity_description in SENSORS
     )
-
+    
+    async_add_entities(entities)
 
 class OpenMeteoSolarForecastSensorEntity(
     CoordinatorEntity[OpenMeteoSolarForecastDataUpdateCoordinator], SensorEntity
 ):
     """Defines a Open-Meteo sensor."""
-
     entity_description: OpenMeteoSolarForecastSensorEntityDescription
     _attr_has_entity_name = True
-
     def __init__(
         self,
         *,
@@ -262,7 +270,6 @@ class OpenMeteoSolarForecastSensorEntity(
         self.entity_description = entity_description
         self.entity_id = f"{SENSOR_DOMAIN}.{entity_description.key}"
         self._attr_unique_id = f"{entry_id}_{entity_description.key}"
-
         self._attr_device_info = DeviceInfo(
             entry_type=DeviceEntryType.SERVICE,
             identifiers={(DOMAIN, entry_id)},
@@ -270,19 +277,15 @@ class OpenMeteoSolarForecastSensorEntity(
             name="Solar production forecast",
             configuration_url="https://open-meteo.com",
         )
-
     async def _update_callback(self, now: datetime) -> None:
         """Update the entity without fetching data from server.
-
         This is required for the power_production_* sensors to update
         as they take data in 15-minute intervals and the update interval
         is 30 minutes."""
         self.async_write_ha_state()
-
     async def async_added_to_hass(self) -> None:
         """Register callbacks."""
         await super().async_added_to_hass()
-
         # Update the state of the sensor every minute without
         # fetching new data from the server.
         async_track_utc_time_change(
@@ -290,7 +293,6 @@ class OpenMeteoSolarForecastSensorEntity(
             self._update_callback,
             second=0,
         )
-
     @property
     def native_value(self) -> datetime | StateType:
         """Return the state of the sensor."""
@@ -300,12 +302,12 @@ class OpenMeteoSolarForecastSensorEntity(
             )
         else:
             state = self.entity_description.state(self.coordinator.data)
-
         return state
-
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return the state attributes."""
+        attrs = None
+        
         if self.entity_description.key.startswith(
             "energy_production_d"
         ) or self.entity_description.key in (
@@ -325,8 +327,7 @@ class OpenMeteoSolarForecastSensorEntity(
                 raise ValueError(
                     f"Unexpected key {self.entity_description.key} for extra_state_attributes"
                 )
-
-            return {
+            attrs = {
                 ATTR_WATTS: {
                     watt_datetime.isoformat(): watt_value
                     for watt_datetime, watt_value in self.coordinator.data.watts.items()
@@ -338,12 +339,26 @@ class OpenMeteoSolarForecastSensorEntity(
                     if wh_datetime.date() == target_date
                 },
             }
-
-        return None
-
+        else:
+            attrs = {}
+            
+        # Ajouter les informations d'ajustement de nébulosité seulement pour les capteurs d'énergie
+        if hasattr(self.coordinator, "adjustment_stats") and self.entity_description.key.startswith("energy_"):
+            cloud_info = {
+                "average_cloud_cover": f"{self.coordinator.adjustment_stats.get('average_cloud_cover', 0):.1f}%",
+                "adjustment": f"{self.coordinator.adjustment_stats.get('adjustment_percentage', 0):.1f}%"
+            }
+            
+            if not attrs:
+                attrs = {}
+                
+            attrs["cloud_adjustment"] = cloud_info
+            
+        return attrs
+        
+# Pas de modification à la classe OpenMeteoSolarCloudCoverDebugSensor
 class OpenMeteoSolarCloudCoverDebugSensor(CoordinatorEntity[OpenMeteoSolarForecastDataUpdateCoordinator], SensorEntity):
     """Capteur de débogage pour les ajustements de nébulosité."""
-
     def __init__(
         self,
         *,
@@ -357,7 +372,6 @@ class OpenMeteoSolarCloudCoverDebugSensor(CoordinatorEntity[OpenMeteoSolarForeca
         self._attr_unique_id = f"{entry_id}_cloud_debug"
         self._attr_should_poll = False
         self._attr_entity_registry_enabled_default = False  # Désactivé par défaut
-
         self._attr_device_info = DeviceInfo(
             entry_type=DeviceEntryType.SERVICE,
             identifiers={(DOMAIN, entry_id)},
@@ -365,7 +379,6 @@ class OpenMeteoSolarCloudCoverDebugSensor(CoordinatorEntity[OpenMeteoSolarForeca
             name="Solar production forecast",
             configuration_url="https://open-meteo.com",
         )
-
     @property
     def native_value(self) -> str:
         """Return a simple state value."""
@@ -373,13 +386,11 @@ class OpenMeteoSolarCloudCoverDebugSensor(CoordinatorEntity[OpenMeteoSolarForeca
             adjustment = self.coordinator.adjustment_stats.get("adjustment_percentage", 0)
             return f"{adjustment:.1f}%"
         return "No data"
-
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return detailed debug attributes."""
         if not self.coordinator.data:
             return {"status": "No data available"}
-
         attrs = {}
         
         # Échantillon de valeurs watts avant/après ajustement
