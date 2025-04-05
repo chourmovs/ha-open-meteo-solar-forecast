@@ -25,16 +25,15 @@ from .const import (
 from .exceptions import OpenMeteoSolarForecastUpdateFailed
 
 def clean_value(value):
-    """Nettoie et convertit les valeurs numériques de manière robuste."""
+    """Gère tous les formats de coordonnées (listes, strings avec crochets, etc.)"""
     try:
-        # Gère les listes, strings avec brackets et différents séparateurs
+        # Extraction de la valeur numérique quel que soit le format d'entrée
         if isinstance(value, (list, tuple)):
             value = value[0]
-        str_value = str(value).replace('[', '').replace(']', '').strip()
-        return round(float(str_value), 6)  # Conserve la précision originale
-    except (ValueError, IndexError, TypeError) as err:
-        LOGGER.error("Erreur de nettoyage de valeur : %s", err)
-        raise ValueError(f"Valeur invalide: {value}") from err
+        return round(float(str(value).replace('[', '').replace(']', '')), 6)
+    except (TypeError, ValueError, IndexError) as err:
+        LOGGER.error("Erreur de conversion GPS : %s", err)
+        raise ValueError(f"Coordonnée invalide : {value}") from err
 
 class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate]):
     """Coordinateur de mise à jour des données solaires."""
@@ -98,11 +97,11 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
             raise OpenMeteoSolarForecastUpdateFailed(f"Erreur : {err}") from err
 
     async def _fetch_cloud_cover(self) -> list[float]:
-        """Récupération des données de couverture nuageuse."""
-        # Utilisation directe des floats nettoyés sans conversion supplémentaire
+        """Récupération des données de nébulosité"""
+        # Utilisation directe des floats déjà validés
         url = (
             f"{self.forecast.base_url}/v1/forecast?"
-            f"latitude={self.forecast.latitude:.6f}&"  # Formatage décimal direct
+            f"latitude={self.forecast.latitude:.6f}&"
             f"longitude={self.forecast.longitude:.6f}&"
             "hourly=cloud_cover"
         )
