@@ -1,6 +1,6 @@
 """DataUpdateCoordinator for the Open-Meteo Solar Forecast integration."""
 from __future__ import annotations
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, timezone
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY, CONF_LATITUDE, CONF_LONGITUDE
 from homeassistant.core import HomeAssistant
@@ -188,7 +188,7 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
                 # Convertir timestamp local en UTC si nécessaire pour la comparaison
                 utc_timestamp = timestamp
                 if timestamp.tzinfo:  # Si timestamp a une timezone
-                    utc_timestamp = timestamp.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+                    utc_timestamp = timestamp.astimezone(timezone.utc).replace(tzinfo=None)
                 
                 for cloud_dt in cloud_cover_dict:
                     # Calculer la différence en ignorant les secondes/microsecondes
