@@ -348,4 +348,10 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
             "daily_adjustments": adjustment_log
         }
         
+        # Vérification des valeurs day_production
+        for i in range(8):  # Vérifier les 7 prochains jours
+            day = estimate.now().date() + timedelta(days=i)
+            production = estimate.day_production(day)
+            LOGGER.info(f"Day production for {day}: {production:.2f} Wh (Day+{i})")
+
         LOGGER.info("Cloud adjustment complete. Overall adjustment: %.1f%%", adjustment_pct)
