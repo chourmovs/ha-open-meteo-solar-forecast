@@ -100,7 +100,7 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
         
         # Obtenir des prévisions sur 7 jours avec un pas de temps horaire
         # Inclure les timestamps pour pouvoir aligner les données
-        url = f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&hourly=cloud_cover&timeformat=iso8601&timezone=auto&forecast_days=7"
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&hourly=cloud_cover&timeformat=iso8601&timezone=auto&models=gem_seamless&forecast_days=7"
         LOGGER.debug("Fetching cloud cover data from URL: %s", url)
         
         async with self.forecast.session.get(url) as response:
