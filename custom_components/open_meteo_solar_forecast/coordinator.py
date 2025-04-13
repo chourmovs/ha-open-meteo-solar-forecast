@@ -38,6 +38,7 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize the Solar Forecast coordinator."""
         self.config_entry = entry
+        self.daily_forecasts = {}  # Dictionnaire pour stocker les prévisions journalières
 
         # Our option flow may cause it to be an empty string,
         # this if statement is here to catch that.
@@ -86,7 +87,9 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
             cloud_cover_data = await self._fetch_hourly_cloud_cover()
             self._adjust_estimate_with_cloud_cover(estimate, cloud_cover_data)
             
-           # LOGGER.debug("Received and adjusted estimate data: %s", estimate)
+            for day in estimate.wh_days:
+                date_str = day.isoformat()
+                self.daily_forecasts[date_str] = estimate.wh_days[day]
             return estimate
         except Exception as error:
             LOGGER.error("Error fetching data: %s", error)
@@ -115,13 +118,7 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
             self.last_cloud_api_response = data
             
             cloud_cover_data = data.get("hourly", {}).get("cloud_cover", [])
-            #LOGGER.debug("Extracted cloud_cover data: %s", cloud_cover_data)
             
-            # Afficher quelques données de débogage sur les timestamps
-            # time_data = data.get("hourly", {}).get("time", [])
-            # if time_data and len(time_data) >= 5:
-            #     LOGGER.debug("Cloud cover timestamps (first 5): %s", time_data[:5])
-            #     LOGGER.debug("Cloud cover data (first 5): %s", cloud_cover_data[:5])
             
             return cloud_cover_data
 
@@ -203,10 +200,10 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
                 # Si on a trouvé un timestamp proche (moins de 2 heures de différence)
                 if closest_timestamp and min_difference <= timedelta(hours=2):
                     cloud_cover_percent = cloud_cover_dict[closest_timestamp]
-                    LOGGER.debug(
-                        "Matched timestamp %s with cloud data timestamp %s (diff: %s), cloud cover: %s%%",
-                        timestamp, closest_timestamp, min_difference, cloud_cover_percent
-                    )
+                    # LOGGER.debug(
+                    #     "Matched timestamp %s with cloud data timestamp %s (diff: %s), cloud cover: %s%%",
+                    #     timestamp, closest_timestamp, min_difference, cloud_cover_percent
+                    # )
                 else:
                     # Fallback à l'ancienne méthode basée sur l'heure du jour
                     day_offset = (timestamp.date() - estimate.now().date()).days
@@ -214,10 +211,10 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
                     
                     if 0 <= hour_index < len(cloud_cover_data):
                         cloud_cover_percent = cloud_cover_data[hour_index]
-                        LOGGER.debug(
-                            "Using fallback hour index method for %s: day_offset=%s, hour=%s, index=%s, cloud cover: %s%%", 
-                            timestamp, day_offset, timestamp.hour, hour_index, cloud_cover_percent
-                        )
+                        # LOGGER.debug(
+                        #     "Using fallback hour index method for %s: day_offset=%s, hour=%s, index=%s, cloud cover: %s%%", 
+                        #     timestamp, day_offset, timestamp.hour, hour_index, cloud_cover_percent
+                        # )
             else:
                 # Fallback à l'ancienne méthode basée sur l'heure du jour comme dernier recours
                 day_offset = (timestamp.date() - estimate.now().date()).days
