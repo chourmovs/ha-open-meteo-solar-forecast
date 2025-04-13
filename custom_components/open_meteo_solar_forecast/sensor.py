@@ -242,13 +242,13 @@ async def async_setup_entry(
             )
         )
     
-    # Ajouter le capteur de débogage de nébulosité
-    entities.append(
-        OpenMeteoSolarCloudCoverDebugSensor(
-            entry_id=entry.entry_id,
-            coordinator=coordinator,
-        )
-    )
+    # # Ajouter le capteur de débogage de nébulosité
+    # entities.append(
+    #     OpenMeteoSolarCloudCoverDebugSensor(
+    #         entry_id=entry.entry_id,
+    #         coordinator=coordinator,
+    #     )
+    # )
     
     async_add_entities(entities)
 
@@ -356,111 +356,111 @@ class OpenMeteoSolarForecastSensorEntity(
             
         return attrs
         
-# Pas de modification à la classe OpenMeteoSolarCloudCoverDebugSensor
-class OpenMeteoSolarCloudCoverDebugSensor(CoordinatorEntity[OpenMeteoSolarForecastDataUpdateCoordinator], SensorEntity):
-    """Capteur de débogage pour les ajustements de nébulosité."""
-    def __init__(
-        self,
-        *,
-        entry_id: str,
-        coordinator: OpenMeteoSolarForecastDataUpdateCoordinator,
-    ) -> None:
-        """Initialize the debug sensor."""
-        super().__init__(coordinator=coordinator)
-        self._attr_name = "Solar Forecast Cloud Cover Debug"
-        self.entity_id = f"{SENSOR_DOMAIN}.solar_forecast_cloud_debug"
-        self._attr_unique_id = f"{entry_id}_cloud_debug"
-        self._attr_should_poll = False
-        self._attr_entity_registry_enabled_default = False  # Désactivé par défaut
-        self._attr_device_info = DeviceInfo(
-            entry_type=DeviceEntryType.SERVICE,
-            identifiers={(DOMAIN, entry_id)},
-            manufacturer="Open-Meteo",
-            name="Solar production forecast",
-            configuration_url="https://open-meteo.com",
-        )
-    @property
-    def native_value(self) -> str:
-        """Return a simple state value."""
-        if hasattr(self.coordinator, "adjustment_stats"):
-            adjustment = self.coordinator.adjustment_stats.get("adjustment_percentage", 0)
-            return f"{adjustment:.1f}%"
-        return "No data"
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        """Return detailed debug attributes."""
-        if not self.coordinator.data:
-            return {"status": "No data available"}
-        attrs = {}
+# # Pas de modification à la classe OpenMeteoSolarCloudCoverDebugSensor
+# class OpenMeteoSolarCloudCoverDebugSensor(CoordinatorEntity[OpenMeteoSolarForecastDataUpdateCoordinator], SensorEntity):
+#     """Capteur de débogage pour les ajustements de nébulosité."""
+#     def __init__(
+#         self,
+#         *,
+#         entry_id: str,
+#         coordinator: OpenMeteoSolarForecastDataUpdateCoordinator,
+#     ) -> None:
+#         """Initialize the debug sensor."""
+#         super().__init__(coordinator=coordinator)
+#         self._attr_name = "Solar Forecast Cloud Cover Debug"
+#         self.entity_id = f"{SENSOR_DOMAIN}.solar_forecast_cloud_debug"
+#         self._attr_unique_id = f"{entry_id}_cloud_debug"
+#         self._attr_should_poll = False
+#         self._attr_entity_registry_enabled_default = False  # Désactivé par défaut
+#         self._attr_device_info = DeviceInfo(
+#             entry_type=DeviceEntryType.SERVICE,
+#             identifiers={(DOMAIN, entry_id)},
+#             manufacturer="Open-Meteo",
+#             name="Solar production forecast",
+#             configuration_url="https://open-meteo.com",
+#         )
+#     @property
+#     def native_value(self) -> str:
+#         """Return a simple state value."""
+#         if hasattr(self.coordinator, "adjustment_stats"):
+#             adjustment = self.coordinator.adjustment_stats.get("adjustment_percentage", 0)
+#             return f"{adjustment:.1f}%"
+#         return "No data"
+#     @property
+#     def extra_state_attributes(self) -> dict[str, Any]:
+#         """Return detailed debug attributes."""
+#         if not self.coordinator.data:
+#             return {"status": "No data available"}
+#         attrs = {}
         
-        # Échantillon de valeurs watts avant/après ajustement
-        if hasattr(self.coordinator, "original_values") and self.coordinator.original_values:
-            # Prendre jusqu'à 5 points de données pour l'échantillon
-            sample_watts = {}
-            sample_wh_period = {}
+#         # Échantillon de valeurs watts avant/après ajustement
+#         if hasattr(self.coordinator, "original_values") and self.coordinator.original_values:
+#             # Prendre jusqu'à 5 points de données pour l'échantillon
+#             sample_watts = {}
+#             sample_wh_period = {}
             
-            # Original values
-            orig_watts = self.coordinator.original_values.get("watts", {})
-            orig_wh = self.coordinator.original_values.get("wh_period", {})
+#             # Original values
+#             orig_watts = self.coordinator.original_values.get("watts", {})
+#             orig_wh = self.coordinator.original_values.get("wh_period", {})
             
-            # Current values
-            current_watts = {
-                dt.isoformat(): val 
-                for dt, val in self.coordinator.data.watts.items()
-            }
-            current_wh = {
-                dt.isoformat(): val 
-                for dt, val in self.coordinator.data.wh_period.items()
-            }
+#             # Current values
+#             current_watts = {
+#                 dt.isoformat(): val 
+#                 for dt, val in self.coordinator.data.watts.items()
+#             }
+#             current_wh = {
+#                 dt.isoformat(): val 
+#                 for dt, val in self.coordinator.data.wh_period.items()
+#             }
             
-            # Échantillon des 5 premières heures
-            timestamps = list(orig_watts.keys())[:5]
-            for ts in timestamps:
-                orig_val = orig_watts.get(ts, 0)
-                curr_val = current_watts.get(ts, 0)
-                diff_pct = ((curr_val - orig_val) / orig_val * 100) if orig_val else 0
+#             # Échantillon des 5 premières heures
+#             timestamps = list(orig_watts.keys())[:5]
+#             for ts in timestamps:
+#                 orig_val = orig_watts.get(ts, 0)
+#                 curr_val = current_watts.get(ts, 0)
+#                 diff_pct = ((curr_val - orig_val) / orig_val * 100) if orig_val else 0
                 
-                sample_watts[ts] = {
-                    "original": orig_val,
-                    "adjusted": curr_val,
-                    "difference_percent": f"{diff_pct:.1f}%"
-                }
+#                 sample_watts[ts] = {
+#                     "original": orig_val,
+#                     "adjusted": curr_val,
+#                     "difference_percent": f"{diff_pct:.1f}%"
+#                 }
                 
-                if ts in orig_wh:
-                    orig_val = orig_wh.get(ts, 0)
-                    curr_val = current_wh.get(ts, 0)
-                    diff_pct = ((curr_val - orig_val) / orig_val * 100) if orig_val else 0
+#                 if ts in orig_wh:
+#                     orig_val = orig_wh.get(ts, 0)
+#                     curr_val = current_wh.get(ts, 0)
+#                     diff_pct = ((curr_val - orig_val) / orig_val * 100) if orig_val else 0
                     
-                    sample_wh_period[ts] = {
-                        "original": orig_val,
-                        "adjusted": curr_val,
-                        "difference_percent": f"{diff_pct:.1f}%"
-                    }
+#                     sample_wh_period[ts] = {
+#                         "original": orig_val,
+#                         "adjusted": curr_val,
+#                         "difference_percent": f"{diff_pct:.1f}%"
+#                     }
             
-            attrs["sample_watts"] = sample_watts
-            attrs["sample_wh_period"] = sample_wh_period
+#             attrs["sample_watts"] = sample_watts
+#             attrs["sample_wh_period"] = sample_wh_period
         
-        # Informations d'ajustement
-        if hasattr(self.coordinator, "adjustment_stats"):
-            attrs["adjustment_stats"] = self.coordinator.adjustment_stats
+#         # Informations d'ajustement
+#         if hasattr(self.coordinator, "adjustment_stats"):
+#             attrs["adjustment_stats"] = self.coordinator.adjustment_stats
             
-        # Échantillon de données de nébulosité
-        if hasattr(self.coordinator, "cloud_cover_data"):
-            # Prendre les 24 premières heures pour l'affichage
-            cloud_data = self.coordinator.cloud_cover_data[:24] if self.coordinator.cloud_cover_data else []
+#         # Échantillon de données de nébulosité
+#         if hasattr(self.coordinator, "cloud_cover_data"):
+#             # Prendre les 24 premières heures pour l'affichage
+#             cloud_data = self.coordinator.cloud_cover_data[:24] if self.coordinator.cloud_cover_data else []
             
-            hours = {}
-            for i, cover in enumerate(cloud_data):
-                # Formater l'heure
-                hour_str = f"{i:02d}:00"
-                # Calculer le facteur d'ajustement
-                adjustment = 1.0 - (cover / 100.0 * 0.7)
-                hours[hour_str] = {
-                    "cloud_cover": f"{cover}%",
-                    "adjustment_factor": f"{adjustment:.2f}"
-                }
+#             hours = {}
+#             for i, cover in enumerate(cloud_data):
+#                 # Formater l'heure
+#                 hour_str = f"{i:02d}:00"
+#                 # Calculer le facteur d'ajustement
+#                 adjustment = 1.0 - (cover / 100.0 * 0.7)
+#                 hours[hour_str] = {
+#                     "cloud_cover": f"{cover}%",
+#                     "adjustment_factor": f"{adjustment:.2f}"
+#                 }
             
-            attrs["hourly_cloud_cover"] = hours
-            attrs["cloud_cover_formula"] = "adjustment = 1.0 - (cloud_cover_percent / 100 * 0.7)"
+#             attrs["hourly_cloud_cover"] = hours
+#             attrs["cloud_cover_formula"] = "adjustment = 1.0 - (cloud_cover_percent / 100 * 0.7)"
             
-        return attrs
+#         return attrs

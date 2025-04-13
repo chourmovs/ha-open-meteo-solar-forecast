@@ -86,7 +86,7 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
             cloud_cover_data = await self._fetch_hourly_cloud_cover()
             self._adjust_estimate_with_cloud_cover(estimate, cloud_cover_data)
             
-            LOGGER.debug("Received and adjusted estimate data: %s", estimate)
+           # LOGGER.debug("Received and adjusted estimate data: %s", estimate)
             return estimate
         except Exception as error:
             LOGGER.error("Error fetching data: %s", error)
@@ -115,13 +115,13 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
             self.last_cloud_api_response = data
             
             cloud_cover_data = data.get("hourly", {}).get("cloud_cover", [])
-            LOGGER.debug("Extracted cloud_cover data: %s", cloud_cover_data)
+            #LOGGER.debug("Extracted cloud_cover data: %s", cloud_cover_data)
             
             # Afficher quelques données de débogage sur les timestamps
-            time_data = data.get("hourly", {}).get("time", [])
-            if time_data and len(time_data) >= 5:
-                LOGGER.debug("Cloud cover timestamps (first 5): %s", time_data[:5])
-                LOGGER.debug("Cloud cover data (first 5): %s", cloud_cover_data[:5])
+            # time_data = data.get("hourly", {}).get("time", [])
+            # if time_data and len(time_data) >= 5:
+            #     LOGGER.debug("Cloud cover timestamps (first 5): %s", time_data[:5])
+            #     LOGGER.debug("Cloud cover data (first 5): %s", cloud_cover_data[:5])
             
             return cloud_cover_data
 
@@ -168,7 +168,7 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
                             dt_str += ':00'  # Ajouter les secondes si non présentes
                         cloud_dt = datetime.fromisoformat(dt_str)
                         cloud_cover_dict[cloud_dt] = cloud_cover_data[i]
-                        LOGGER.debug("Cloud timestamp mapping: %s -> %s%%", dt_str, cloud_cover_data[i])
+                        # LOGGER.debug("Cloud timestamp mapping: %s -> %s%%", dt_str, cloud_cover_data[i])
                     except ValueError as e:
                         LOGGER.error("Error parsing timestamp %s: %s", timestamp_str, e)
         
@@ -231,21 +231,21 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
             adjusted_watts = watts * adjustment_factor
             
             # Stocker l'ajustement dans le log
-            date_str = timestamp.date().isoformat()
-            if date_str not in adjustment_log:
-                adjustment_log[date_str] = {
-                    "original_total": 0,
-                    "adjusted_total": 0,
-                    "adjustments": []
-                }
+            # date_str = timestamp.date().isoformat()
+            # if date_str not in adjustment_log:
+            #     adjustment_log[date_str] = {
+            #         "original_total": 0,
+            #         "adjusted_total": 0,
+            #         "adjustments": []
+            #     }
                 
-            adjustment_log[date_str]["adjustments"].append({
-                "time": timestamp.time().isoformat(),
-                "cloud_cover": f"{cloud_cover_percent}%",
-                "original": watts,
-                "adjustment_factor": adjustment_factor,
-                "adjusted": adjusted_watts
-            })
+            # adjustment_log[date_str]["adjustments"].append({
+            #     "time": timestamp.time().isoformat(),
+            #     "cloud_cover": f"{cloud_cover_percent}%",
+            #     "original": watts,
+            #     "adjustment_factor": adjustment_factor,
+            #     "adjusted": adjusted_watts
+            # })
             
             # Appliquer l'ajustement
             estimate.watts[timestamp] = adjusted_watts
@@ -329,7 +329,7 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
             adjustment_factor = 1.0 - (avg_cloud_cover / 100.0 * 0.7)
             estimate.wh_days[day] = wh * adjustment_factor
             
-            # Enregistrer pour le débogage
+            # Enregistrer pour le débogage ( A garder)
             LOGGER.debug(
                 "Day adjustment - %s: avg cloud cover: %.1f%%, original: %.1f, adjusted: %.1f", 
                 date_str, avg_cloud_cover, wh, (wh * adjustment_factor)
@@ -349,9 +349,9 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
         }
         
         # Vérification des valeurs day_production
-        for i in range(8):  # Vérifier les 7 prochains jours
-            day = estimate.now().date() + timedelta(days=i)
-            production = estimate.day_production(day)
-            LOGGER.info(f"Day production for {day}: {production:.2f} Wh (Day+{i})")
+        #for i in range(8):  # Vérifier les 7 prochains jours
+          #  day = estimate.now().date() + timedelta(days=i)
+         #   production = estimate.day_production(day)
+         #   LOGGER.info(f"Day production for {day}: {production:.2f} Wh (Day+{i})")
 
-        LOGGER.info("Cloud adjustment complete. Overall adjustment: %.1f%%", adjustment_pct)
+        #LOGGER.info("Cloud adjustment complete. Overall adjustment: %.1f%%", adjustment_pct)
