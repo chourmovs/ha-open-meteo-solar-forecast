@@ -19,6 +19,9 @@ from .const import (
     CONF_EFFICIENCY_FACTOR,
     CONF_INVERTER_POWER,
     CONF_MODEL,
+    CONF_CLOUD_MODEL,
+    CONF_CLOUD_CORRECTION_FACTOR,
+    DEFAULT_CLOUD_CORRECTION_FACTOR,
     CONF_MODULES_POWER,
     DOMAIN,
 )
@@ -64,6 +67,9 @@ class OpenMeteoSolarForecastFlowHandler(ConfigFlow, domain=DOMAIN):
                     CONF_INVERTER_POWER: user_input[CONF_INVERTER_POWER],
                     CONF_EFFICIENCY_FACTOR: user_input[CONF_EFFICIENCY_FACTOR],
                     CONF_MODEL: user_input[CONF_MODEL],
+                    CONF_CLOUD_MODEL: user_input[CONF_CLOUD_MODEL], 
+                    CONF_CLOUD_CORRECTION_FACTOR: user_input[CONF_CLOUD_CORRECTION_FACTOR], 
+
                 },
             )
 
@@ -102,6 +108,9 @@ class OpenMeteoSolarForecastFlowHandler(ConfigFlow, domain=DOMAIN):
                         vol.Coerce(float), vol.Range(min=0)
                     ),
                     vol.Optional(CONF_MODEL, default="best_match"): str,
+                    vol.Optional(CONF_CLOUD_MODEL, default="best_match"): str,
+                    vol.Optional(CONF_CLOUD_CORRECTION_FACTOR, default=self.config_entry.options.get(CONF_CLOUD_CORRECTION_FACTOR, DEFAULT_CLOUD_CORRECTION_FACTOR)
+): vol.All(vol.Coerce(float), vol.Range(min=0, max=1)),
                 }
             ),
         )
@@ -174,6 +183,16 @@ class OpenMeteoSolarForecastOptionFlowHandler(OptionsFlow):
                         CONF_MODEL,
                         default=self.config_entry.options.get(CONF_MODEL, "best_match"),
                     ): str,
+                    vol.Optional(
+                        CONF_CLOUD_MODEL,
+                        default=self.config_entry.options.get(CONF_CLOUD_MODEL, "best_match"),
+                    ): str,
+                    vol.Optional(
+                        CONF_CLOUD_CORRECTION_FACTOR,
+                        default=self.config_entry.options.get(
+                            CONF_CLOUD_CORRECTION_FACTOR, DEFAULT_CLOUD_CORRECTION_FACTOR
+                        ),
+                    ): vol.All(vol.Coerce(float), vol.Range(min=0, max=1)),
                 }
             ),
             errors=errors,

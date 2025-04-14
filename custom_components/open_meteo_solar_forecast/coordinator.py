@@ -18,6 +18,9 @@ from .const import (
     CONF_INVERTER_POWER,
     CONF_MODULES_POWER,
     CONF_MODEL,
+    CONF_CLOUD_MODEL,
+    CONF_CLOUD_CORRECTION_FACTOR,
+    DEFAULT_CLOUD_CORRECTION_FACTOR,
     DOMAIN,
     LOGGER,
 )
@@ -97,13 +100,15 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
 
     async def _fetch_hourly_cloud_cover(self) -> list:
         """Fetch hourly cloud cover data from open-meteo.com."""
+        
         latitude = clean_value(str(self.forecast.latitude))
         longitude = clean_value(str(self.forecast.longitude))
+        cloud_cover_model=self.config_entry.options.get(CONF_CLOUD_MODEL,"best_match")
         LOGGER.debug("Fetching cloud cover data for latitude: %s, longitude: %s", latitude, longitude)
         
         # Obtenir des prévisions sur 7 jours avec un pas de temps horaire
         # Inclure les timestamps pour pouvoir aligner les données
-        url = f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&hourly=cloud_cover&timeformat=iso8601&timezone=auto&models=gem_seamless&forecast_days=7"
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&hourly=cloud_cover&timeformat=iso8601&timezone=auto&models={cloud_cover_model}&forecast_days=7"
         LOGGER.debug("Fetching cloud cover data from URL: %s", url)
         
         async with self.forecast.session.get(url) as response:
@@ -223,27 +228,13 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
                 if 0 <= hour_index < len(cloud_cover_data):
                     cloud_cover_percent = cloud_cover_data[hour_index]
             
+
             # Facteur d'ajustement: 100% de nébulosité = réduction de 70% (ajustable selon vos besoins)
-            adjustment_factor = 1.0 - (cloud_cover_percent / 100.0 * 0.7)
+
+            cloud_correction_factor = self.config_entry.options.get(CONF_CLOUD_CORRECTION_FACTOR, DEFAULT_CLOUD_CORRECTION_FACTOR)
+            adjustment_factor = 1.0 - (cloud_cover_percent / 100.0 * cloud_correction_factor)
             adjusted_watts = watts * adjustment_factor
-            
-            # Stocker l'ajustement dans le log
-            # date_str = timestamp.date().isoformat()
-            # if date_str not in adjustment_log:
-            #     adjustment_log[date_str] = {
-            #         "original_total": 0,
-            #         "adjusted_total": 0,
-            #         "adjustments": []
-            #     }
-                
-            # adjustment_log[date_str]["adjustments"].append({
-            #     "time": timestamp.time().isoformat(),
-            #     "cloud_cover": f"{cloud_cover_percent}%",
-            #     "original": watts,
-            #     "adjustment_factor": adjustment_factor,
-            #     "adjusted": adjusted_watts
-            # })
-            
+                 
             # Appliquer l'ajustement
             estimate.watts[timestamp] = adjusted_watts
         
@@ -344,11 +335,3 @@ class OpenMeteoSolarForecastDataUpdateCoordinator(DataUpdateCoordinator[Estimate
             "adjustment_percentage": adjustment_pct,
             "daily_adjustments": adjustment_log
         }
-        
-        # Vérification des valeurs day_production
-        #for i in range(8):  # Vérifier les 7 prochains jours
-          #  day = estimate.now().date() + timedelta(days=i)
-         #   production = estimate.day_production(day)
-         #   LOGGER.info(f"Day production for {day}: {production:.2f} Wh (Day+{i})")
-
-        #LOGGER.info("Cloud adjustment complete. Overall adjustment: %.1f%%", adjustment_pct)

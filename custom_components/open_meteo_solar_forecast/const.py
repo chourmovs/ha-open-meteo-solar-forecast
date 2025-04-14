@@ -16,6 +16,9 @@ CONF_DAMPING_EVENING = "damping_evening"
 CONF_INVERTER_POWER = "inverter_power"
 CONF_EFFICIENCY_FACTOR = "efficiency_factor"
 CONF_MODEL = "model"
+CONF_CLOUD_MODEL ="cloud_model"
+CONF_CLOUD_CORRECTION_FACTOR = "cloud_correction_factor"
+DEFAULT_CLOUD_CORRECTION_FACTOR = 0.7
 
 ATTR_WATTS = "watts"
 ATTR_WH_PERIOD = "wh_period"
